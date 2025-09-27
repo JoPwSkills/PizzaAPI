@@ -1,40 +1,57 @@
-from flask import Flask, jsonify, request
+from flask import Flask, request, jsonify
 
 app = Flask(__name__)
 
-todos = [
-    {"id": 1, "task": "Learn REST APIs", "done": False},
-    {"id": 2, "task": "Deploy an app", "done": False}
+# Pizza menu (could be fetched from DB in real-world apps)
+menu = [
+    {
+        "id": 1,
+        "name": "Margherita",
+        "toppings": ["Tomato", "Mozzarella", "Basil"],
+        "sides": ["Garlic Bread", "Coke"]
+    },
+    {
+        "id": 2,
+        "name": "Pepperoni",
+        "toppings": ["Tomato", "Mozzarella", "Pepperoni"],
+        "sides": ["Cheesy Sticks", "Pepsi"]
+    },
+    {
+        "id": 3,
+        "name": "Veggie Delight",
+        "toppings": ["Tomato", "Mozzarella", "Onions", "Capsicum", "Olives"],
+        "sides": ["Salad", "Iced Tea"]
+    }
 ]
 
-@app.route("/")
-def home():
-    return {"message": "Welcome to the Simple REST API!"}
+# In-memory order storage
+orders = []
 
-@app.route("/todos", methods=["GET"])
-def get_todos():
-    return jsonify(todos)
+@app.route("/menu", methods=["GET"])
+def get_menu():
+    return jsonify({"pizzas": menu})
 
-@app.route("/todos", methods=["POST"])
-def add_todo():
-    new_todo = request.json
-    new_todo["id"] = len(todos) + 1
-    todos.append(new_todo)
-    return jsonify(new_todo), 201
+@app.route("/order", methods=["POST"])
+def place_order():
+    data = request.json
+    if not data or "pizza_id" not in data or "customer_name" not in data:
+        return jsonify({"error": "Invalid order format"}), 400
+    
+    # Check if pizza exists
+    pizza = next((p for p in menu if p["id"] == data["pizza_id"]), None)
+    if not pizza:
+        return jsonify({"error": "Pizza not found"}), 404
 
-@app.route("/todos/<int:todo_id>", methods=["PUT"])
-def update_todo(todo_id):
-    for todo in todos:
-        if todo["id"] == todo_id:
-            todo.update(request.json)
-            return jsonify(todo)
-    return {"error": "Todo not found"}, 404
+    order = {
+        "order_id": len(orders) + 1,
+        "customer_name": data["customer_name"],
+        "pizza": pizza["name"],
+        "sides": data.get("sides", []),
+        "status": "confirmed"
+    }
+    orders.append(order)
+    return jsonify(order), 201
 
-@app.route("/todos/<int:todo_id>", methods=["DELETE"])
-def delete_todo(todo_id):
-    global todos
-    todos = [t for t in todos if t["id"] != todo_id]
-    return {"message": "Todo deleted"}, 200
 
 if __name__ == "__main__":
     app.run(host="0.0.0.0", port=5000)
